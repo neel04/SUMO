@@ -1,0 +1,15 @@
+compute_environment: LOCAL_MACHINE
+deepspeed_config: {}
+distributed_type: MULTI_GPU
+downcast_bf16: 'no'
+fsdp_config: {}
+machine_rank: 0
+main_process_ip: 172.31.231.142 
+main_process_port: 8887
+main_training_function: main
+mixed_precision: fp16
+num_machines: 2
+num_processes: 16
+rdzv_backend: static
+same_network: true
+use_cpu: false

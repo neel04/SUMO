@@ -1,0 +1,7 @@
+Bootstrap: library
+From: ubuntu:18.04
+
+%post
+    apt-get update
+    apt-get install -y python3 python3-pip -y
+    apt-get install aria2 -y

@@ -1,0 +1,10 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:22.07-py3
+
+%post
+    apt-get -y update
+    apt-get -y install nano vim git
+    pip3 install s3fs opencv-python-headless scipy Pillow tensorflow_datasets Ipython matplotlib wandb
+    pip3 install -U tensorflow_io nvitop tensorflow_datasets timm torchinfo
+    pip3 install -U tensorflow~=2.9.1 torchmetrics
+    pip3 install git+https://github.com/huggingface/accelerate

@@ -1,0 +1,9 @@
+Bootstrap: docker
+From: tensorflow/tensorflow:latest-gpu
+
+%post
+    apt-get -y update
+    apt-get -y install nano vim
+    pip3 install s3fs opencv-python-headless scipy Pillow tensorflow_datasets ray Ipython matplotlib wandb keras_cv_attention_models
+    pip3 install tensorflow_io nvitop tensorflow_addons tensorflow_datasets torch accelerate timm
+    pip3 install -U tensorflow-gpu tensorflow_addons

@@ -1,0 +1,6 @@
+Bootstrap: docker
+From: tfsigio/tfio
+
+%post 
+    pip3 install -U tensorflow_io==0.17.0 tensorflow
+    pip3 install s3fs opencv-python-headless scipy Pillow ray tensorflow_datasets matplotlib Ipython 

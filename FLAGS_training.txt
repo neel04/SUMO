@@ -1,0 +1,273 @@
+usage: train_script.py [-h] [-d DATA_NAME] [-i INPUT_SHAPE] [-m MODEL]
+                       [-b BATCH_SIZE] [-e EPOCHS] [-p OPTIMIZER]
+                       [-I INITIAL_EPOCH] [-s BASIC_SAVE_NAME]
+                       [-r RESTORE_PATH] [--pretrained PRETRAINED]
+                       [--additional_model_kwargs ADDITIONAL_MODEL_KWARGS]
+                       [--seed SEED] [--freeze_backbone]
+                       [--freeze_norm_layers] [--disable_float16] [--summary]
+                       [--tensorboard_logs TENSORBOARD_LOGS] [--TPU]
+                       [--label_smoothing LABEL_SMOOTHING]
+                       [--bce_threshold BCE_THRESHOLD]
+                       [--lr_base_512 LR_BASE_512]
+                       [--weight_decay WEIGHT_DECAY]
+                       [--lr_decay_steps LR_DECAY_STEPS] [--lr_decay_on_batch]
+                       [--lr_warmup LR_WARMUP]
+                       [--lr_warmup_steps LR_WARMUP_STEPS]
+                       [--lr_cooldown_steps LR_COOLDOWN_STEPS]
+                       [--lr_min LR_MIN] [--lr_t_mul LR_T_MUL]
+                       [--lr_m_mul LR_M_MUL] [--momentum MOMENTUM]
+                       [--magnitude MAGNITUDE] [--num_layers NUM_LAYERS]
+                       [--random_crop_min RANDOM_CROP_MIN]
+                       [--mixup_alpha MIXUP_ALPHA]
+                       [--cutmix_alpha CUTMIX_ALPHA]
+                       [--random_erasing_prob RANDOM_ERASING_PROB]
+                       [--eval_central_crop EVAL_CENTRAL_CROP]
+                       [--rescale_mode RESCALE_MODE]
+                       [--resize_method RESIZE_METHOD] [--disable_antialias]
+                       [--disable_positional_related_ops]
+                       [--token_label_file TOKEN_LABEL_FILE]
+                       [--token_label_loss_weight TOKEN_LABEL_LOSS_WEIGHT]
+                       [--teacher_model TEACHER_MODEL]
+                       [--teacher_model_pretrained TEACHER_MODEL_PRETRAINED]
+                       [--teacher_model_input_shape TEACHER_MODEL_INPUT_SHAPE]
+                       [--distill_temperature DISTILL_TEMPERATURE]
+                       [--distill_loss_weight DISTILL_LOSS_WEIGHT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DATA_NAME, --data_name DATA_NAME
+                        Dataset name from tensorflow_datasets like
+                        imagenet2012 cifar10 (default: imagenet2012)
+  -i INPUT_SHAPE, --input_shape INPUT_SHAPE
+                        Model input shape (default: 160)
+  -m MODEL, --model MODEL
+                        Model name in format [sub_dir].[model_name]. Or
+                        keras.applications name like MobileNet (default:
+                        aotnet.AotNet50)
+  -b BATCH_SIZE, --batch_size BATCH_SIZE
+                        Batch size (default: 256)
+  -e EPOCHS, --epochs EPOCHS
+                        Total epochs. Set -1 means using lr_decay_steps +
+                        lr_cooldown_steps (default: -1)
+  -p OPTIMIZER, --optimizer OPTIMIZER
+                        Optimizer name. One of [AdamW, LAMB, RMSprop, SGD,
+                        SGDW]. (default: LAMB)
+  -I INITIAL_EPOCH, --initial_epoch INITIAL_EPOCH
+                        Initial epoch when restore from previous interrupt
+                        (default: 0)
+  -s BASIC_SAVE_NAME, --basic_save_name BASIC_SAVE_NAME
+                        Basic save name for model and history. None means a
+                        combination of parameters, or starts with _ as a
+                        suffix to default name (default: None)
+  -r RESTORE_PATH, --restore_path RESTORE_PATH
+                        Restore model from saved h5 by
+                        `keras.models.load_model` directly. Higher priority
+                        than model (default: None)
+  --pretrained PRETRAINED
+                        If build model with pretrained weights. Mostly used is
+                        one of [imagenet, imagenet21k]. Or specified h5 file
+                        for build model -> restore weights. This will drop
+                        model optimizer, used for
+                        `progressive_train_script.py`. Relatively,
+                        `restore_path` is used for restore from break point
+                        (default: None)
+  --additional_model_kwargs ADDITIONAL_MODEL_KWARGS
+                        Json format model kwargs like '{"drop_connect_rate":
+                        0.05}'. Note all quote marks (default: None)
+  --seed SEED           Set random seed if not None (default: None)
+  --freeze_backbone     Freeze backbone, set layer.trainable=False till model
+                        GlobalAveragePooling2D layer (default: False)
+  --freeze_norm_layers  Set layer.trainable=False for BatchNormalization and
+                        LayerNormalization (default: False)
+  --disable_float16     Disable mixed_float16 training (default: False)
+  --summary             show model summary (default: False)
+  --tensorboard_logs TENSORBOARD_LOGS
+                        TensorBoard logs saving path, default None for
+                        disable. Set auto for `logs/{basic_save_name} + _ +
+                        timestamp`. (default: None)
+  --TPU                 Run training on TPU. Will set True for dataset
+                        `try_gcs` and `drop_remainder` (default: False)
+
+Loss arguments:
+  --label_smoothing LABEL_SMOOTHING
+                        Loss label smoothing value (default: 0)
+  --bce_threshold BCE_THRESHOLD
+                        Value [0, 1) for BCE loss target_threshold, set 1 for
+                        using CategoricalCrossentropy (default: 0.2)
+
+Optimizer arguments like Learning rate, weight decay and momentum:
+  --lr_base_512 LR_BASE_512
+                        Learning rate for batch_size=512, lr = lr_base_512 *
+                        512 / batch_size (default: 0.008)
+  --weight_decay WEIGHT_DECAY
+                        Weight decay. For SGD, it's L2 value. For AdamW /
+                        SGDW, it will multiply with learning_rate. For LAMB,
+                        it's directly used (default: 0.02)
+  --lr_decay_steps LR_DECAY_STEPS
+                        Learning rate decay epoch steps. Single value like 100
+                        for cosine decay. Set 30,60,90 for constant decay
+                        steps (default: 100)
+  --lr_decay_on_batch   Learning rate decay on each batch, or on epoch
+                        (default: False)
+  --lr_warmup LR_WARMUP
+                        Learning rate warmup value (default: 0.0001)
+  --lr_warmup_steps LR_WARMUP_STEPS
+                        Learning rate warmup epochs (default: 5)
+  --lr_cooldown_steps LR_COOLDOWN_STEPS
+                        Learning rate cooldown epochs (default: 5)
+  --lr_min LR_MIN       Learning rate minimum value (default: 1e-06)
+  --lr_t_mul LR_T_MUL   For CosineDecayRestarts, derive the number of
+                        iterations in the i-th period (default: 2)
+  --lr_m_mul LR_M_MUL   For CosineDecayRestarts, derive the initial learning
+                        rate of the i-th period (default: 0.5)
+  --momentum MOMENTUM   Momentum for SGD / SGDW / RMSprop optimizer (default:
+                        0.9)
+
+Dataset arguments:
+  --magnitude MAGNITUDE
+                        Randaug magnitude value (default: 6)
+  --num_layers NUM_LAYERS
+                        Number of randaug applied sequentially to an image.
+                        Usually best in [1, 3] (default: 2)
+  --random_crop_min RANDOM_CROP_MIN
+                        Random crop min value for RRC. Set 1 to disable RRC
+                        (default: 0.08)
+  --mixup_alpha MIXUP_ALPHA
+                        Mixup alpha value (default: 0.1)
+  --cutmix_alpha CUTMIX_ALPHA
+                        Cutmix alpha value (default: 1.0)
+  --random_erasing_prob RANDOM_ERASING_PROB
+                        Random erasing prob, can be used to replace cutout.
+                        Set 0 to disable (default: 0)
+  --eval_central_crop EVAL_CENTRAL_CROP
+                        Evaluation central crop fraction. Set 1 to disable
+                        (default: 0.95)
+  --rescale_mode RESCALE_MODE
+                        Rescale mode, one of [tf, torch] (default: torch)
+  --resize_method RESIZE_METHOD
+                        Resize method from tf.image.resize, like [bilinear,
+                        bicubic] (default: bicubic)
+  --disable_antialias   Set use antialias=False for tf.image.resize (default:
+                        False)
+  --disable_positional_related_ops
+                        Set use use_positional_related_ops=False for
+                        RandAugment (default: False)
+
+Token labeling and distillation arguments:
+  --token_label_file TOKEN_LABEL_FILE
+                        Specific token label file path (default: None)
+  --token_label_loss_weight TOKEN_LABEL_LOSS_WEIGHT
+                        Token label loss weight if `token_label_file` is not
+                        None (default: 0.5)
+  --teacher_model TEACHER_MODEL
+                        Could be: 1. Saved h5 model path. 2. Model name
+                        defined in this repo, format [sub_dir].[model_name]
+                        like regnet.RegNetZD8. 3. timm model like
+                        timm.models.resmlp_12_224 (default: None)
+  --teacher_model_pretrained TEACHER_MODEL_PRETRAINED
+                        Teacher model pretrained weight, if not built from h5
+                        (default: imagenet)
+  --teacher_model_input_shape TEACHER_MODEL_INPUT_SHAPE
+                        Teacher model input_shape, -1 for same with
+                        `input_shape` (default: -1)
+  --distill_temperature DISTILL_TEMPERATURE
+                        Temperature for DistillKLDivergenceLoss (default: 10)
+  --distill_loss_weight DISTILL_LOSS_WEIGHT
+                        Distill loss weight if `teacher_model` is not None
+                        (default: 1)
+
+Traceback (most recent call last):
+  File "./keras_cv_attention_models/train_script.py", line 228, in <module>
+    run_training_by_args(args)
+  File "./keras_cv_attention_models/train_script.py", line 218, in run_training_by_args
+    latest_save, hist = train_func.train(
+  File "/home/awesome/keras_cv_attention_models/keras_cv_attention_models/imagenet/train_func.py", line 241, in train
+    hist = compiled_model.fit(
+  File "/usr/local/lib/python3.8/dist-packages/keras/utils/traceback_utils.py", line 67, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/usr/local/lib/python3.8/dist-packages/tensorflow/python/eager/execute.py", line 54, in quick_execute
+    tensors = pywrap_tfe.TFE_Py_Execute(ctx._handle, device_name, op_name,
+tensorflow.python.framework.errors_impl.InvalidArgumentError: Graph execution error:
+
+Detected at node 'binary_crossentropy/logistic_loss/mul' defined at (most recent call last):
+    File "./keras_cv_attention_models/train_script.py", line 228, in <module>
+      run_training_by_args(args)
+    File "./keras_cv_attention_models/train_script.py", line 218, in run_training_by_args
+      latest_save, hist = train_func.train(
+    File "/home/awesome/keras_cv_attention_models/keras_cv_attention_models/imagenet/train_func.py", line 241, in train
+      hist = compiled_model.fit(
+    File "/usr/local/lib/python3.8/dist-packages/keras/utils/traceback_utils.py", line 64, in error_handler
+      return fn(*args, **kwargs)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1384, in fit
+      tmp_logs = self.train_function(iterator)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1021, in train_function
+      return step_function(self, iterator)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1010, in step_function
+      outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1000, in run_step
+      outputs = model.train_step(data)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 860, in train_step
+      loss = self.compute_loss(x, y, y_pred, sample_weight)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 918, in compute_loss
+      return self.compiled_loss(
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/compile_utils.py", line 201, in __call__
+      loss_value = loss_obj(y_t, y_p, sample_weight=sw)
+    File "/usr/local/lib/python3.8/dist-packages/keras/losses.py", line 141, in __call__
+      losses = call_fn(y_true, y_pred)
+    File "/home/awesome/keras_cv_attention_models/keras_cv_attention_models/imagenet/losses.py", line 28, in call
+      return super().call(y_true, y_pred)
+    File "/usr/local/lib/python3.8/dist-packages/keras/losses.py", line 245, in call
+      return ag_fn(y_true, y_pred, **self._fn_kwargs)
+    File "/usr/local/lib/python3.8/dist-packages/keras/losses.py", line 1932, in binary_crossentropy
+      backend.binary_crossentropy(y_true, y_pred, from_logits=from_logits),
+    File "/usr/local/lib/python3.8/dist-packages/keras/backend.py", line 5247, in binary_crossentropy
+      return tf.nn.sigmoid_cross_entropy_with_logits(labels=target, logits=output)
+Node: 'binary_crossentropy/logistic_loss/mul'
+Incompatible shapes: [963,51] vs. [244,51]
+         [[{{node binary_crossentropy/logistic_loss/mul}}]] [Op:__inference_train_function_32158]
+Singularity>
+
+
+Traceback (most recent call last):
+  File "./keras_cv_attention_models/train_script.py", line 228, in <module>
+    run_training_by_args(args)
+  File "./keras_cv_attention_models/train_script.py", line 218, in run_training_by_args
+    latest_save, hist = train_func.train(
+  File "/home/awesome/keras_cv_attention_models/keras_cv_attention_models/imagenet/train_func.py", line 241, in train
+    hist = compiled_model.fit(
+  File "/usr/local/lib/python3.8/dist-packages/keras/utils/traceback_utils.py", line 67, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/usr/local/lib/python3.8/dist-packages/tensorflow/python/eager/execute.py", line 54, in quick_execute
+    tensors = pywrap_tfe.TFE_Py_Execute(ctx._handle, device_name, op_name,
+tensorflow.python.framework.errors_impl.InvalidArgumentError: Graph execution error:
+
+Detected at node 'gradient_tape/binary_crossentropy/logistic_loss/mul/BroadcastGradientArgs' defined at (most recent call last):
+    File "./keras_cv_attention_models/train_script.py", line 228, in <module>
+      run_training_by_args(args)
+    File "./keras_cv_attention_models/train_script.py", line 218, in run_training_by_args
+      latest_save, hist = train_func.train(
+    File "/home/awesome/keras_cv_attention_models/keras_cv_attention_models/imagenet/train_func.py", line 241, in train
+      hist = compiled_model.fit(
+    File "/usr/local/lib/python3.8/dist-packages/keras/utils/traceback_utils.py", line 64, in error_handler
+      return fn(*args, **kwargs)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1384, in fit
+      tmp_logs = self.train_function(iterator)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1021, in train_function
+      return step_function(self, iterator)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1010, in step_function
+      outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 1000, in run_step
+      outputs = model.train_step(data)
+    File "/usr/local/lib/python3.8/dist-packages/keras/engine/training.py", line 863, in train_step
+      self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    File "/usr/local/lib/python3.8/dist-packages/keras/optimizer_v2/optimizer_v2.py", line 530, in minimize
+      grads_and_vars = self._compute_gradients(
+    File "/usr/local/lib/python3.8/dist-packages/keras/mixed_precision/loss_scale_optimizer.py", line 573, in _compute_gradients
+      grads_and_vars = self._optimizer._compute_gradients(  # pylint: disable=protected-access
+    File "/usr/local/lib/python3.8/dist-packages/keras/optimizer_v2/optimizer_v2.py", line 583, in _compute_gradients
+      grads_and_vars = self._get_gradients(tape, loss, var_list, grad_loss)
+    File "/usr/local/lib/python3.8/dist-packages/keras/optimizer_v2/optimizer_v2.py", line 464, in _get_gradients
+      grads = tape.gradient(loss, var_list, grad_loss)
+Node: 'gradient_tape/binary_crossentropy/logistic_loss/mul/BroadcastGradientArgs'
+Incompatible shapes: [321,51] vs. [963,51]
+         [[{{node gradient_tape/binary_crossentropy/logistic_loss/mul/BroadcastGradientArgs}}]] [Op:__inference_train_function_37775]
