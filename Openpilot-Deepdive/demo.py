@@ -1,4 +1,6 @@
+from collections import OrderedDict
 from utils import draw_path, draw_trajectory_on_ax
+from main import setup
 import torch
 import os
 import numpy as np
@@ -12,15 +14,18 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
 # FFMPEG COMMAND = ffmpeg -framerate 15 -i %08d.jpg -vf scale=-2:900 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p output.mp4
-CKPT_PATH = '/fsx/awesome/comma2k19_checkpoints/resnet50_32.pth'  # Path to your checkpoint
+CKPT_PATH = '/fsx/awesome/comma2k19_checkpoints/convnext_small_in22k_46.pth'  # Path to your checkpoint
 
 # You can generate your own comma2k19_demo.txt to make some fancy demos
 # val = Comma2k19SequenceDataset('data/comma2k19_demo.txt', 'data/comma2k19/','demo', use_memcache=False, return_origin=True)
 val = Comma2k19SequenceDataset('data/comma2k19_val_non_overlap.txt', 'data/comma2k19/','demo', use_memcache=False, return_origin=True)
 val_loader = DataLoader(val, 1, num_workers=0, shuffle=False)
 
-planning_v0 = SequenceBaselineV1(model_name='convnext_tiny_in22k', M=5, num_pts=33, mtp_alpha=1.0, lr=0.0, optimizer='adamw', checkpoint_path='')
-planning_v0.load_state_dict(torch.load(CKPT_PATH))
+#TODO: Change this to your own model
+planning_v0 = SequenceBaselineV1(model_name='convnext_small_in22k', M=5, num_pts=33, mtp_alpha=1.0, lr=0.0, optimizer='LAMB').to('cuda')
+planning_v0.device = 'cuda'
+weight_dict = torch.load(CKPT_PATH)['model_state_dict']
+planning_v0.load_state_dict(weight_dict)
 planning_v0.eval().cuda()
 
 seq_idx = 0
@@ -41,7 +46,7 @@ for b_idx, batch in enumerate(val_loader):
 
         with torch.no_grad():
             inputs, labels = seq_inputs[:, t, :, :, :], seq_labels[:, t, :, :]
-            pred_cls, pred_trajectory, hidden = planning_v0(inputs, hidden)
+            pred_cls, pred_trajectory, hidden = planning_v0(inputs, 1, hidden)
 
             pred_conf = softmax(pred_cls, dim=-1).cpu().numpy()[0]
             pred_trajectory = pred_trajectory.reshape(planning_v0.M, planning_v0.num_pts, 3).cpu().numpy()

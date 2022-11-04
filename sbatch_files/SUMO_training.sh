@@ -1,12 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name SUMO_train   ## name that will show up in the queue
 #SBATCH --exclusive
-#SBATCH --output slurm-%j.out   ## filename of the output; the %j is equal to jobID; default is slurm-[jobID].out
+#SBATCH --output /fsx/awesome/slurm-%j.out   ## filename of the output; the %j is equal to jobID; default is slurm-[jobID].out
 #SBATCH --partition=gpu
 #SBATCH -t 7-72:00:00  # time limit: (D-HH:MM)
 #SBATCH --comment laion
 #SBATCH --ntasks-per-node=1
-#SBATCH --exclude gpu-st-p4d-24xlarge-[290]
 #SBATCH --requeue # requeue the job if preempted
 
 # Training on a slurm cluster

@@ -121,7 +121,7 @@ class SequenceBaselineV1(nn.Module):
         else:
             try:
                 optimizer = create_optimizer_v2(
-                    lr=args.lr, opt=args.optimizer, weight_decay=0.00001, momentum=0.4,
+                    lr=args.lr, opt=args.optimizer, weight_decay=0.000001,
                     model_or_params=model)
             except:
                 raise NotImplementedError
@@ -161,12 +161,10 @@ def main(rank, world_size, args):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[rank], find_unused_parameters=True, broadcast_buffers=False)
     loss = MultipleTrajectoryPredictionLoss(args.mtp_alpha, args.M, args.num_pts, distance_type='angle')
 
-    if args.resume:
-        # resuming mechanism, obtaining the latest checkpoint path
-        # This is useful in a SLURM setting where we pre-empt multiple times
-        # and want to resume from the latest checkpoint
-        chkp_list = glob(f'/fsx/awesome/comma2k19_checkpoints/{args.model}*.pth')
+    # resuming mechanism, obtaining the latest checkpoint path
+    chkp_list = glob(f'/fsx/awesome/comma2k19_checkpoints/{args.model}*.pth')
 
+    if args.resume:
         if len(chkp_list) > 0:
             # We want to obtain the file last modified in chkp_list
             chkp_file = max(chkp_list, key=os.path.getctime) # Get the latest file
@@ -183,6 +181,10 @@ def main(rank, world_size, args):
     for epoch in tqdm(range(args.epochs), disable=disable_tqdm, position=0):
         train_dataloader.sampler.set_epoch(epoch)
         model.train()
+
+        if args.resume and epoch == 0 and len(chkp_list) > 0:
+            # We want to skip the first epoch if we are resuming from a checkpoint
+            epoch = 1 # 1 - Won't freeze after resuming
         
         for batch_idx, data in enumerate(tqdm(train_dataloader, leave=False, disable=disable_tqdm, position=1)):
             seq_inputs, seq_labels = data['seq_input_img'].cuda(), data['seq_future_poses'].cuda()
