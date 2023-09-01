@@ -4,4 +4,13 @@
 
 
 # SUMO
+
 Scaling Large Language Models for Self-driving
+
+
+
+
+
+<div align="center">
+  <video src="https://github.com/neel04/SUMO/assets/11617870/b5f13783-5f0d-4f54-a57d-b1947ac98057" width="600" />
+</div>
